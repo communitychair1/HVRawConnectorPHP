@@ -1,16 +1,10 @@
 {
-    "name": "biologis/hv-raw-connector",
+    "name": "communitychair1/hv-raw-connector",
     "type": "library",
     "description": "Simple PHP library to connect to Microsoft HealthVault using raw XML.",
     "keywords": ["healthvault", "xml"],
-    "homepage": "https://github.com/mkalkbrenner/HVRawConnectorPHP",
+    "homepage": "https://github.com/communitychair1/HVRawConnectorPHP",
     "license": "GPL-2.0+",
-    "authors": [
-        {
-            "name": "Markus Kalkbenner",
-            "email": "info@bio.logis.de"
-        }
-    ],
     "repositories": [
         {
             "type": "pear",
