@@ -303,22 +303,42 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
   }
 
     /**
-     * @param $appId
-     * @param $redirect
-     * @param $session
-     * @param string $healthVaultAuthInstance
+     * @param $appId App ID to return the user to.
+     * @param $redirect URL to return the user to after successful/unsuccessful HealthVault call.
+     * @param $session PHP Session object. Should look to NOT rely upon this at all.
+     * @param string $healthVaultAuthInstance URL to use, defaults to the HealthVault PPE account.
+     * @param string $target Should be "AUTH/APPAUTH". See http://msdn.microsoft.com/en-us/healthvault/bb871492.aspx for when
+     * to use each one.
+     * @param array $additionalTargetQSParams Associative array of key/values for additional targetqs params for HealthVault
      * @return string
      */
-    public static function getAuthenticationURL($appId, $redirect, &$session, $healthVaultAuthInstance = 'https://account.healthvault-ppe.com/redirect.aspx') {
+    public static function getAuthenticationURL($appId,
+                                                $redirect,
+                                                &$session,
+                                                $healthVaultAuthInstance = 'https://account.healthvault-ppe.com/redirect.aspx',
+                                                $target = "AUTH",
+                                                $additionalTargetQSParams = null
+    ) {
     $session['healthVault']['redirectToken'] = md5(uniqid());
 
     $redirectUrl = new \Net_URL2($redirect);
     $redirectUrl->setQueryVariable('redirectToken', $session['healthVault']['redirectToken']);
 
     $healthVaultUrl = new \Net_URL2($healthVaultAuthInstance);
+    $targetQS = '?appid=' . $appId . '&redirect=' . $redirectUrl->getURL();
+
+
+    if ( !empty($additionalTargetQSParams) )
+    {
+        foreach ($additionalTargetQSParams as $key => $val )
+        {
+            $targetQS .= "&" . $key . "=" . $val;
+        }
+    }
+
     $healthVaultUrl->setQueryVariables(array(
-      'target' => 'AUTH',
-      'targetqs' => '?appid=' . $appId . '&redirect=' . $redirectUrl->getURL(),
+      'target' => $target,
+      'targetqs' =>  $targetQS
     ));
 
     return $healthVaultUrl->getURL();
