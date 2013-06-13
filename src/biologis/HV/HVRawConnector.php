@@ -13,7 +13,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use biologis\HV\Net_URL2;
 
-//include("URL2.php");
+include("URL2.php");
 class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterface {
   public static $version = 'HVRawConnector1.2.0';
 
