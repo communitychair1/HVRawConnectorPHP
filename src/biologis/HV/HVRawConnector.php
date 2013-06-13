@@ -11,8 +11,9 @@ namespace biologis\HV;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use biologis\HV\Net_URL2;
 
-
+//include("URL2.php");
 class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterface {
   public static $version = 'HVRawConnector1.2.0';
 
@@ -321,10 +322,10 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
     ) {
     $session['healthVault']['redirectToken'] = md5(uniqid());
 
-    $redirectUrl = new \Net_URL2($redirect);
+    $redirectUrl = new Net_URL2($redirect);
     $redirectUrl->setQueryVariable('redirectToken', $session['healthVault']['redirectToken']);
 
-    $healthVaultUrl = new \Net_URL2($healthVaultAuthInstance);
+    $healthVaultUrl = new Net_URL2($healthVaultAuthInstance);
     $targetQS = '?appid=' . $appId . '&redirect=' . $redirectUrl->getURL();
 
 
