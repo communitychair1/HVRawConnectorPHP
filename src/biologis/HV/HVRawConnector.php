@@ -70,9 +70,12 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
     if (!$this->logger) {
       $this->logger = new NullLogger();
     }
+
+    print_r($this->online);
+
     if($this->online)
     {
-        if (empty($this->session['healthVault']['userAuthToken']) && !empty($_GET['wctoken']) && $_GET['redirectToken'] == $this->session['healthVault']['redirectToken']) {
+        if (!isset($this->session['healthVault']['userAuthToken']) || empty($this->session['healthVault']['userAuthToken']) && !empty($_GET['wctoken']) && $_GET['redirectToken'] == $this->session['healthVault']['redirectToken']) {
           // TODO verify wctoken / security check
           $this->session['healthVault']['userAuthToken'] = $_GET['wctoken'];
         }
