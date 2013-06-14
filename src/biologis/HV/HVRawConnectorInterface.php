@@ -11,19 +11,18 @@ namespace biologis\HV;
 
 interface HVRawConnectorInterface {
 
-  public function setCountry($country);
-
-  public function setLanguage($language);
-
   public function setHealthVaultPlatform($healthVaultPlatform);
 
   public function connect();
 
-  public function anonymousWcRequest($method, $methodVersion, $info, $additionalHeaders);
+  public function makeRequest($method, $methodVersion , $additionalHeaders, $personId );
 
-  public function authenticatedWcRequest($method, $methodVersion, $info, $additionalHeaders);
-
-  public static function getAuthenticationURL($appId, $redirect, &$session, $healthVaultAuthInstance);
+  public static function getAuthenticationURL($appId,
+                                              $redirect,
+                                              $config,
+                                              $healthVaultAuthInstance,
+                                              $target,
+                                              $additionalTargetQSParams);
 
   public static function invalidateSession(&$session);
 
