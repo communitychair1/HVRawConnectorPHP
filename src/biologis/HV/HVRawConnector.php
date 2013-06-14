@@ -13,102 +13,89 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use biologis\HV\Net_URL2;
 
+// TODO Remove this
 include("URL2.php");
+
 class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterface {
-  public static $version = 'HVRawConnector1.2.0';
+    public static $version = 'HVRawConnector1.2.0';
 
-  private $session;
-  private $appId;
-  private $thumbPrint;
-  private $privateKey;
-  private $sharedSecret;
-  private $digest;
-  private $authToken;
-  private $userAuthToken;
-  private $rawResponse;
-  private $qpResponse;
-  private $responseCode;
-  private $logger = NULL;
-  private $online;
 
-  public function setLogger(LoggerInterface $logger) {
-    $this->logger = $logger;
-  }
+    // Passed in via the contructor
+    private $appId;
+    private $thumbPrint;
+    private $privateKey;
+    private $config; // array of additional parameters
 
-  /**
-   * @param string $appId
-   *   HealthVault Application ID
-   * @param string $thumbPrint
-   *   Certificate thumb print
-   * @param string $privateKey
-   *   Private key as string or file path to load private key from
-   * @param array $session
-   *   Session array, in most cases $_SESSION
-   */
-  public function __construct($appId, $thumbPrint, $privateKey, &$session, $online) {
-    $this->session = & $session;
-    $this->appId = $appId;
-    $this->thumbPrint = $thumbPrint;
-    $this->privateKey = $privateKey;
-    $this->online = $online;
+    // Generated in the constructor
+    private $sharedSecret;
+    private $digest;
 
-    if (empty($this->session['healthVault']['sharedSecret'])) {
-      $this->session['healthVault']['sharedSecret'] = $this->hash(uniqid());
-      $this->session['healthVault']['digest'] = $this->hmacSha1($this->session['healthVault']['sharedSecret'], $this->session['healthVault']['sharedSecret']);
+    // Saved responses from HealthVault
+    private $rawResponse;
+    private $qpResponse;
+    private $responseCode;
+
+    // Call setLogger to change this from the default NullLogger
+    private $logger = NULL;
+
+    // This gets set in the connect method.
+    private $authToken;
+
+    /**
+    * @param string $appId
+    *   HealthVault Application ID
+    * @param string $thumbPrint
+    *   Certificate thumb print
+    * @param string $privateKey
+    *   Private key as string or file path to load private key from
+    * @param array $config
+    *   Config array
+    */
+    public function __construct($appId, $thumbPrint, $privateKey, $config ) {
+        $this->appId = $appId;
+        $this->thumbPrint = $thumbPrint;
+        $this->privateKey = $privateKey;
+        $this->config = $config;
+        $this->logger = new NullLogger();
+
+        if ( empty($this->config['healthVault']['sharedSecret']) ) {
+            $this->sharedSecret = $this->hash(uniqid());
+            $this->digest = $this->hmacSha1( $this->sharedSecret, $this->sharedSecret );
+        }
+
+        if ( !empty($this->config['authToken']))
+        {
+            $this->authToken = $this->config['authToken'];
+        }
+
     }
-
-    $this->sharedSecret = $this->session['healthVault']['sharedSecret'];
-    $this->digest = $this->session['healthVault']['digest'];
-  }
 
 
     /**
+     * If we have a wctoken in the session, connect to HV and get a userauthtoken
+     *
      * @throws HVRawConnectorUserNotAuthenticatedException
-     * Called only on inital paring of account for offline access
+     *
      */
     public function connect() {
-    if (!$this->logger) {
-      $this->logger = new NullLogger();
-    }
 
-    print_r($this->online);
+        // Grab an authToken from HV
+        if ( empty( $this->authToken ) ) {
+            $info = qp(HVRawConnector::$commandCreateAuthenticatedSessionTokenXML, NULL, array('use_parser' => 'xml'))
+                ->xpath('auth-info/app-id')->text($this->appId)->top()
+                ->xpath('//content/app-id')->text($this->appId)->top()
+                ->find('sig')->attr('thumbprint', $this->thumbPrint)->top()
+                ->find('hmac-alg')->text($this->digest)->top();
 
-    if($this->online)
-    {
-        if (!isset($this->session['healthVault']['userAuthToken']) || empty($this->session['healthVault']['userAuthToken']) && !empty($_GET['wctoken']) && $_GET['redirectToken'] == $this->session['healthVault']['redirectToken']) {
-          // TODO verify wctoken / security check
-          $this->session['healthVault']['userAuthToken'] = $_GET['wctoken'];
+            $content = $info->find('content')->xml();
+
+            $xml = $info->top()->find('sig')->text($this->sign($content))->top()->innerXML();
+
+            // throws HVRawConnectorAnonymousWcRequestException
+            $this->anonymousWcRequest('CreateAuthenticatedSessionToken', '1', $xml);
+            $this->authToken = $this->qpResponse->find('token')->text();
         }
-
-        if (!empty($this->session['healthVault']['userAuthToken'])) {
-          $this->userAuthToken = $this->session['healthVault']['userAuthToken'];
-
-        }
-        else {
-          throw new HVRawConnectorUserNotAuthenticatedException();
-        }
-    }
-
-    if (empty($this->session['healthVault']['authToken'])) {
-      $info = qp(HVRawConnector::$commandCreateAuthenticatedSessionTokenXML, NULL, array('use_parser' => 'xml'))
-        ->xpath('auth-info/app-id')->text($this->appId)->top()
-        ->xpath('//content/app-id')->text($this->appId)->top()
-        ->find('sig')->attr('thumbprint', $this->thumbPrint)->top()
-        ->find('hmac-alg')->text($this->digest)->top();
-
-      $content = $info->find('content')->xml();
-
-      $xml = $info->top()->find('sig')->text($this->sign($content))->top()->innerXML();
-
-      // throws HVRawConnectorAnonymousWcRequestException
-      $this->anonymousWcRequest('CreateAuthenticatedSessionToken', '1', $xml);
-
-      $this->session['healthVault']['authToken'] = $this->qpResponse->find('token')->text();
-    }
-
-    if (!empty($this->session['healthVault']['authToken'])) {
-      $this->authToken = $this->session['healthVault']['authToken'];
-    }
+        return $this->authToken;
   }
 
     /**
@@ -118,13 +105,13 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
      * @param array $additionalHeaders
      */
     public function anonymousWcRequest($method, $methodVersion = '1', $info = '', $additionalHeaders = array()) {
-    $header = $this->getBasicCommandQueryPath(HVRawConnector::$anonymousWcRequestXML, $method, $methodVersion, $info)
-      ->find('header app-id')->text($this->appId)->top();
+        $header = $this->getBasicCommandQueryPath(HVRawConnector::$anonymousWcRequestXML, $method, $methodVersion, $info)
+          ->find('header app-id')->text($this->appId)->top();
 
-    $this->addAdditionalHeadersToWcRequest($header, $additionalHeaders);
+        $this->addAdditionalHeadersToWcRequest($header, $additionalHeaders);
 
-    $this->doWcRequest($header);
-  }
+        $this->doWcRequest($header);
+    }
 
     /**
      * @param $method
@@ -134,44 +121,54 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
      * Currently only used for getPersonInfo on inital login.  That information should be stored for later use of
      * offline connect and request.
      */
-    public function authenticatedWcRequest($method, $methodVersion = '1', $info = '', $additionalHeaders = array()) {
-    $header = $this->getBasicCommandQueryPath(HVRawConnector::$authenticatedWcRequestXML, $method, $methodVersion, $info)
-      ->find('header hash-data')->text($this->hash(empty($info) ? '<info/>' : '<info>' . $info . '</info>'))->top()
-      ->find('header auth-token')->text($this->authToken)->top()
-      ->find('header user-auth-token')->text($this->userAuthToken)->top();
+    public function makeRequest($method, $methodVersion = '1', $info = '', $additionalHeaders = array(), $personId = null) {
+        $starterXML = null;
+        $offline = true;
 
-    $this->addAdditionalHeadersToWcRequest($header, $additionalHeaders);
-    $headerRawXml = $header->find('header')->xml();
+        if ( empty($this->config['wctoken']) )
+        {
+            // Quick test to ensure we have a $personId
+            if ( empty($personId) )
+            {
+                throw new HVRawConnectorUserNotAuthenticatedException();
+            }
+            // Offline Request
+            $offline = true;
+            $starterXML = HVRawConnector::$offlineRequestXML;
+        }
+        else
+        {
+            // wctoken is empty, make an Online Request
+            $offline = false;
+            $starterXML = HVRawConnector::$authenticatedWcRequestXML;
+        }
 
-    $this->doWcRequest(
-      $header->top()->find('hmac-data')->text($this->hmacSha1($headerRawXml, base64_decode($this->session['healthVault']['digest'])))
-    );
-  }
+        $requestXMLObj = $this->getBasicCommandQueryPath($starterXML, $method, $methodVersion, $info);
 
-    /**
-     * @param $method
-     * @param string $methodVersion
-     * @param string $info
-     * @param array $additionalHeaders
-     * @param $user
-     * Replaces Traditional offlineRequest function.  Uses offline-person-id as opposed to wc Token to allow for offline
-     * connection to healthvault.
-     * Completely removes annoying authentication timeout issues.
-     */
-    public function offlineRequest($method, $methodVersion = '1', $info = '', $additionalHeaders = array(), $personId) {
-    $header = $this->getBasicCommandQueryPath(HVRawConnector::$offlineRequestXML, $method, $methodVersion, $info)
-      ->find('header hash-data')->text($this->hash(empty($info) ? '<info/>' : '<info>' . $info . '</info>'))->top()
-      ->find('header auth-token')->text($this->authToken)->top()
-      //->find('header app-id')->text($this->appId)->top()
-      ->find('header offline-person-id')->text($personId)->top();
-        //->find('header user-auth-token')->text($this->userAuthToken)->top()
+        // Fill in the placeholder strings with the actual data. Probably would be a lot more efficient
+        // to do an actual string replacement rather than parse XML, replace, and then create an XML string again.
+        // Just sayin...
+        $requestXMLObj->find('header hash-data')->text($this->hash(empty($info) ? '<info/>' : '<info>' . $info . '</info>'))->top()
+                      ->find('header auth-token')->text($this->authToken)->top();
 
-    $this->addAdditionalHeadersToWcRequest($header, $additionalHeaders);
-    $headerRawXml = $header->find('header')->xml();
-    $this->doWcRequest(
-      $header->top()->find('hmac-data')->text($this->hmacSha1($headerRawXml, base64_decode($this->session['healthVault']['digest'])))
-    );
-  }
+        // This is the sole difference between an offline and online request, make the string replacement
+        if ( $offline )
+        {
+            $requestXMLObj->find('header offline-person-id')->text($personId)->top();
+        }
+        else
+        {
+            $requestXMLObj->find('header user-auth-token')->text($this->config['wctoken'])->top();
+        }
+
+        $this->addAdditionalHeadersToWcRequest($requestXMLObj, $additionalHeaders);
+        $headerRawXml = $requestXMLObj->find('header')->xml();
+        $this->doWcRequest(
+            $requestXMLObj->top()->find('hmac-data')
+                ->text($this->hmacSha1($headerRawXml, base64_decode($this->digest)))
+        );
+    }
+
 
     /**
      * @param $wcRequestXML
@@ -194,18 +191,18 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
      * @param $additionalHeaders
      */
     private function addAdditionalHeadersToWcRequest($header, $additionalHeaders) {
-    if ($this->language) {
-      $header->top()->find('header language')->text($this->language);
-    }
-    if ($this->country) {
-      $header->top()->find('header language')->text($this->country);
-    }
-    if (!empty($additionalHeaders)) {
-      foreach ($additionalHeaders as $element => $text) {
-        $header->top()->find('method-version')->after('<' . $element . '>' . $text . '</' . $element . '>');
-      }
-    }
-    $header->top();
+        if ( !empty($this->config['language'])  ) {
+          $header->top()->find('header language')->text( $this->config['language'] );
+        }
+        if ( !empty($this->config['country']) ) {
+          $header->top()->find('header language')->text($this->config['country']);
+        }
+        if (!empty($additionalHeaders)) {
+          foreach ($additionalHeaders as $element => $text) {
+            $header->top()->find('method-version')->after('<' . $element . '>' . $text . '</' . $element . '>');
+          }
+        }
+        $header->top();
   }
 
     /**
@@ -224,7 +221,7 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
       ),
     );
 
-    //$this->logger->debug('Request: ' . $params['http']['content']);
+    $this->logger->debug('Request: ' . $params['http']['content']);
     $ctx = stream_context_create($params);
     $this->rawResponse = @file_get_contents($this->healthVaultPlatform, FALSE, $ctx);
     if (!$this->rawResponse) {
@@ -232,7 +229,7 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
       $this->responseCode = -1;
       throw new \Exception('HealthVault Connection Failure', -1);
     }
-    //$this->logger->debug('Response: ' . $this->rawResponse);
+    $this->logger->debug('Response: ' . $this->rawResponse);
 
     $this->qpResponse = qp($this->rawResponse, NULL, array('use_parser' => 'xml'));
     $this->responseCode = (int) $this->qpResponse->find('response status code')->text();
@@ -245,7 +242,7 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
         case 7: // The user authenticated session token has expired.
         case 65: // The authenticated session token has expired.
           // the easiest solution is to invalidate everything and let the user initialize a new connection @see _construct()
-          HVRawConnector::invalidateSession($this->session);
+          HVRawConnector::invalidateSession($this->config);
           throw new HVRawConnectorAuthenticationExpiredException($this->qpResponse->top()->find('error message')->text(), $this->responseCode);
       }
       throw new HVRawConnectorWcRequestException($this->qpResponse->top()->find('error message')->text(), $this->responseCode);
@@ -260,32 +257,32 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
      * @throws Exception
      */
     protected function sign($str) {
-    static $privateKey = NULL;
+        static $privateKey = NULL;
 
-    if (is_null($privateKey)) {
-      if (is_file($this->privateKey)) {
-        if (is_readable($this->privateKey)) {
-          $privateKey = @file_get_contents($this->privateKey);
+        if (is_null($privateKey)) {
+          if (is_file($this->privateKey)) {
+            if (is_readable($this->privateKey)) {
+              $privateKey = @file_get_contents($this->privateKey);
+            }
+            else {
+              throw new Exception('Unable to read private key file.');
+            }
+          }
+          else {
+            $privateKey = $this->privateKey;
+          }
         }
-        else {
-          throw new Exception('Unable to read private key file.');
-        }
-      }
-      else {
-        $privateKey = $this->privateKey;
-      }
-    }
 
-    // TODO check if $privateKey really is a key (format)
+        // TODO check if $privateKey really is a key (format)
 
-    openssl_sign(
-      // remove line breaks and spaces between elements, otherwise the signature check will fail
-      preg_replace('/>\s+</', '><', $str),
-      $signature,
-      $privateKey,
-      OPENSSL_ALGO_SHA1);
+        openssl_sign(
+          // remove line breaks and spaces between elements, otherwise the signature check will fail
+          preg_replace('/>\s+</', '><', $str),
+          $signature,
+          $privateKey,
+          OPENSSL_ALGO_SHA1);
 
-    return trim(base64_encode($signature));
+        return trim(base64_encode($signature));
   }
 
     /**
@@ -309,7 +306,7 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
     /**
      * @param $appId App ID to return the user to.
      * @param $redirect URL to return the user to after successful/unsuccessful HealthVault call.
-     * @param $session PHP Session object. Should look to NOT rely upon this at all.
+     * @param $config PHP Session object. Should look to NOT rely upon this at all.
      * @param string $healthVaultAuthInstance URL to use, defaults to the HealthVault PPE account.
      * @param string $target Should be "AUTH/APPAUTH". See http://msdn.microsoft.com/en-us/healthvault/bb871492.aspx for when
      * to use each one.
@@ -318,15 +315,20 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
      */
     public static function getAuthenticationURL($appId,
                                                 $redirect,
-                                                &$session,
+                                                $config,
                                                 $healthVaultAuthInstance = 'https://account.healthvault-ppe.com/redirect.aspx',
                                                 $target = "AUTH",
                                                 $additionalTargetQSParams = null
     ) {
-    $session['healthVault']['redirectToken'] = md5(uniqid());
+    $config['healthVault']['redirectToken'] = md5(uniqid());
 
+    // $redirectUrl = $redirect;
     $redirectUrl = new Net_URL2($redirect);
-    $redirectUrl->setQueryVariable('redirectToken', $session['healthVault']['redirectToken']);
+
+    // TODO: Form this using PHP functions and not the Net_URL2 class
+    // $queryStr
+
+    $redirectUrl->setQueryVariable('redirectToken', $config['healthVault']['redirectToken']);
 
     $healthVaultUrl = new Net_URL2($healthVaultAuthInstance);
     $targetQS = '?appid=' . $appId . '&redirect=' . $redirectUrl->getURL();
@@ -336,7 +338,7 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
     {
         foreach ($additionalTargetQSParams as $key => $val )
         {
-            $targetQS .= "&" . $key . "=" . $val;
+            $targetQS .= "&" . urlencode($key) . "=" . urlencode($val);
         }
     }
 
@@ -349,10 +351,10 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
   }
 
     /**
-     * @param $session
+     * @param $config
      */
-    public static function invalidateSession(&$session) {
-    unset($session['healthVault']);
+    public static function invalidateSession(&$config) {
+    unset($config['healthVault']);
   }
 
     /**
@@ -368,6 +370,11 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
     public function getQueryPathResponse() {
     return $this->qpResponse->top();
   }
+
+    public function setLogger(LoggerInterface $logger) {
+        $this->logger = $logger;
+    }
+
 }
 
 /**
