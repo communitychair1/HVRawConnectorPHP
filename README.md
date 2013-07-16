@@ -4,6 +4,8 @@ HVRawConnectorPHP
 Simple PHP library to connect to
 [Microsoft HealthVault](https://www.healthvault.com/).
 
+This library is a fork of [HVRawConnectorPHP](https://github.com/mkalkbrenner/HVRawConnectorPHP/). Several changes have been made to the library since the fork and they are documented at the bottom of this document.
+
 
 Installation
 ------------
@@ -47,8 +49,13 @@ HealthVault.
 Simply put the HVRawConnectorPHP folder on a web server and access
 "demo_app/index.php".
 
+Changes and Additions
+---------------------
+
+- Updated the GetThings method to be able to make both online and offline requests
+
 
 Licence
 -------
 
-[GPLv2](https://raw.github.com/mkalkbrenner/HVRawConnectorPHP/master/LICENSE.txt).
+[GPLv2](https://raw.github.com/communitychair1/HVRawConnectorPHP/master/LICENSE.txt).
