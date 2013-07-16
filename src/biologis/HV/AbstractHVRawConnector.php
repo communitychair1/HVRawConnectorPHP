@@ -166,7 +166,7 @@ XML;
     'Emotional State' => '4b7971d6-e427-427d-bf2c-2fbcf76606b3',
     'Encounter #(v2)' => '464083cc-13de-4f3e-a189-da8e47d5651b',
     'Encounter' => '3d4bdf01-1b3e-4afc-b41c-bd3e641a6da7',
-    'Exercise #(v2)' => '85a21ddb-db20-4c65-8d30-33c899ccf612',
+    'Exercise' => '85a21ddb-db20-4c65-8d30-33c899ccf612',
     'Exercise Samples' => 'e1f92d7f-9699-4483-8223-8442874ec6d9',
     'Explanation of Benefits' => '356fbba9-e0c9-4f4f-b0d9-4594f2490d2f',
     'Family History #(v2)' => '22826e13-41e1-4ba3-8447-37dadd208fd8',
