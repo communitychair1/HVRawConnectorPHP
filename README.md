@@ -1,4 +1,4 @@
-HVRawConnectorPHP
+HVRawConnectorPHP [![Build Status](https://travis-ci.org/communitychair1/HVRawConnectorPHP.png?branch=master)](https://travis-ci.org/communitychair1/HVRawConnectorPHP)
 =================
 
 Simple PHP library to connect to
