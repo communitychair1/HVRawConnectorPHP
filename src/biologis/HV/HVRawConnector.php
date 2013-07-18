@@ -20,7 +20,7 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
     public static $version = 'HVRawConnector1.2.0';
 
 
-    // Passed in via the contructor
+    // Passed in via the constructor
     private $appId;
     private $thumbPrint;
     private $privateKey;
@@ -81,7 +81,7 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
 
         // Grab an authToken from HV
         if ( empty( $this->authToken ) ) {
-            $info = qp(HVRawConnector::$commandCreateAuthenticatedSessionTokenXML, NULL, array('use_parser' => 'xml'))
+            $info = qp(HVRawConnector::getAuthenticatedSessionTokenTemplateXml(), NULL, array('use_parser' => 'xml'))
                 ->xpath('auth-info/app-id')->text($this->appId)->top()
                 ->xpath('//content/app-id')->text($this->appId)->top()
                 ->find('sig')->attr('thumbprint', $this->thumbPrint)->top()
@@ -105,7 +105,7 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
      * @param array $additionalHeaders
      */
     public function anonymousWcRequest($method, $methodVersion = '1', $info = '', $additionalHeaders = array()) {
-        $header = $this->getBasicCommandQueryPath(HVRawConnector::$anonymousWcRequestXML, $method, $methodVersion, $info)
+        $header = $this->getBasicCommandQueryPath(HVRawConnector::getAnonymousWcRequestTemplateXML(), $method, $methodVersion, $info)
           ->find('header app-id')->text($this->appId)->top();
 
         $this->addAdditionalHeadersToWcRequest($header, $additionalHeaders);
@@ -118,7 +118,9 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
      * @param string $methodVersion
      * @param string $info
      * @param array $additionalHeaders
-     * Currently only used for getPersonInfo on inital login.  That information should be stored for later use of
+     * @param null $personId
+     * @throws HVRawConnectorUserNotAuthenticatedException
+     * * Currently only used for getPersonInfo on inital login.  That information should be stored for later use of
      * offline connect and request.
      */
     public function makeRequest($method, $methodVersion = '1', $info = '', $additionalHeaders = array(), $personId = null) {
@@ -134,13 +136,13 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
             }
             // Offline Request
             $offline = true;
-            $starterXML = HVRawConnector::$offlineRequestXML;
+            $starterXML = HVRawConnector::getOfflineRequestXML();
         }
         else
         {
             // wctoken is empty, make an Online Request
             $offline = false;
-            $starterXML = HVRawConnector::$authenticatedWcRequestXML;
+            $starterXML = HVRawConnector::getAuthenticatedWcRequestXML();
         }
 
         $requestXMLObj = $this->getBasicCommandQueryPath($starterXML, $method, $methodVersion, $info);
