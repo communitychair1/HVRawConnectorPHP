@@ -13,6 +13,10 @@ namespace biologis\HV;
 use Doctrine\Common\Cache\ArrayCache;
 use Doctrine\Tests\Common\Annotations\Null;
 
+/**
+ * Class AbstractHVRawConnector
+ * @package biologis\HV
+ */
 abstract class AbstractHVRawConnector implements HVRawConnectorInterface
 {
     //Member Variables

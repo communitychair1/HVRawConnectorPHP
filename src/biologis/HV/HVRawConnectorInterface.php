@@ -8,7 +8,10 @@
 
 namespace biologis\HV;
 
-
+/**
+ * Class HVRawConnectorInterface
+ * @package biologis\HV
+ */
 interface HVRawConnectorInterface {
 
   public function setHealthVaultPlatform($healthVaultPlatform);
@@ -17,12 +20,9 @@ interface HVRawConnectorInterface {
 
   public function makeRequest($method, $methodVersion , $additionalHeaders, $personId );
 
-  public static function getAuthenticationURL($appId,
-                                              $redirect,
-                                              $config,
+  public static function getAuthenticationURL($appId, $redirect, $config,
                                               $healthVaultAuthInstance,
-                                              $target,
-                                              $additionalTargetQSParams);
+                                              $target, $additionalTargetQSParams);
 
   public static function invalidateSession(&$session);
 
