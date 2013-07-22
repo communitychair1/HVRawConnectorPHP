@@ -236,20 +236,30 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
         $this->responseCode = (int)$this->qpResponse->find('response status code')->text();
 
         if ($this->responseCode > 0) {
-            //$this->logger->error('Response Code: ' . $this->responseCode);
-            //$this->logger->error('Error Message: ' . $this->qpResponse->top()->find('error message')->text());
-            switch ($this->responseCode) {
-                // TODO add more error codes
-                case 7: // The user authenticated session token has expired.
-                case 65: // The authenticated session token has expired.
-                    // the easiest solution is to invalidate everything and let the user initialize a new connection @see _construct()
-                    HVRawConnector::invalidateSession($this->config);
-                    throw new HVRawConnectorAuthenticationExpiredException($this->qpResponse->top()->find('error message')->text(), $this->responseCode);
-            }
-            throw new HVRawConnectorWcRequestException($this->qpResponse->top()->find('error message')->text(), $this->responseCode);
+           $this->HandleStatusCodes($this->responseCode);
         }
 
         $this->qpResponse->top();
+    }
+
+    /** Handle Status Codes
+     *      Handles exceptions for status codes returned
+     *      from health vault HTTP Requests
+     * @param $respCode
+     * @throws HVRawConnectorAuthenticationExpiredException
+     * @throws HVRawConnectorWcRequestException
+     */
+    private function HandleStatusCodes($respCode){
+        //Switch on the response code to handle specific status-codes
+        switch ($this->responseCode)
+        {
+            case 7: // The user authenticated session token has expired.
+            case 65: // The authenticated session token has expired.
+                HVRawConnector::invalidateSession($this->config);
+                throw new HVRawConnectorAuthenticationExpiredException($this->qpResponse->top()->find('error message')->text(), $this->responseCode);
+            default: // Handle all status's without a particular case
+                throw new HVRawConnectorAuthenticationExpiredException($this->qpResponse->top()->find('error message')->text(), $this->responseCode);
+        }
     }
 
     /** Sign
