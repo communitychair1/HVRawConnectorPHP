@@ -285,6 +285,7 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
 
         // TODO check if $privateKey really is a key (format)
 
+
         openssl_sign(
         // remove line breaks and spaces between elements, otherwise the signature check will fail
             preg_replace('/>\s+</', '><', $str),
@@ -293,25 +294,6 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
             OPENSSL_ALGO_SHA1);
 
         return trim(base64_encode($signature));
-    }
-
-    /** Hash
-     * @param $str
-     * @return string
-     */
-    protected function hash($str)
-    {
-        return trim(base64_encode(sha1(preg_replace('/>\s+</', '><', $str), TRUE)));
-    }
-
-    /** Hmac Sha 1
-     * @param $str
-     * @param $key
-     * @return string
-     */
-    protected function hmacSha1($str, $key)
-    {
-        return trim(base64_encode(hash_hmac('sha1', preg_replace('/>\s+</', '><', $str), $key, TRUE)));
     }
 
     /** Get Authentication URL
@@ -354,6 +336,25 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
         ));
 
         return $healthVaultUrl->getURL();
+    }
+
+    /** Hash
+     * @param $str
+     * @return string
+     */
+    protected function hash($str)
+    {
+        return trim(base64_encode(sha1(preg_replace('/>\s+</', '><', $str), TRUE)));
+    }
+
+    /** Hmac Sha 1
+     * @param $str
+     * @param $key
+     * @return string
+     */
+    protected function hmacSha1($str, $key)
+    {
+        return trim(base64_encode(hash_hmac('sha1', preg_replace('/>\s+</', '><', $str), $key, TRUE)));
     }
 
     /** Invalidate Session

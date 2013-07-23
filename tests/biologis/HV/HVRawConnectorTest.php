@@ -9,7 +9,8 @@
 
 namespace biologis\HV;
 
-//require_once("HVRawConnectorBaseTest");
+use biologis\HV\HVRawConnectorBaseTest;
+require_once("HVRawConnectorBaseTest");
 
 /** Health Vault Raw Connector Test
  *      Tests the functionality of the Raw Connector.
