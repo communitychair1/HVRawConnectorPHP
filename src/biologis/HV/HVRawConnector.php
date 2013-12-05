@@ -233,7 +233,7 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
         $this->logger->debug('Response: ' . $this->rawResponse);
 
         $this->qpResponse = qp($this->rawResponse, NULL, array('use_parser' => 'xml'));
-        $this->responseCode = (int)$this->qpResponse->find('response status code')->text();
+        $this->responseCode = (int)$this->qpResponse->find('response>status>code')->text();
 
         if ($this->responseCode > 0) {
            $this->HandleStatusCodes($this->responseCode);
