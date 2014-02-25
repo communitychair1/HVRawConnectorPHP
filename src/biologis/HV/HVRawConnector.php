@@ -59,9 +59,16 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
         $this->config = $config;
         $this->logger = new NullLogger();
 
-        if (empty($this->config['healthVault']['sharedSecret'])) {
+
+        // $uniqueId = empty($this->config['healthVault']['uniqueId']) ? uniqid() : $this->config['healthVault']['uniqueId'];
+
+        if (empty($this->config['digest'])) {
             $this->sharedSecret = $this->hash(uniqid());
             $this->digest = $this->hmacSha1($this->sharedSecret, $this->sharedSecret);
+        }
+        else
+        {
+            $this->digest = $this->config['digest'];
         }
 
         if (!empty($this->config['authToken'])) {
@@ -96,6 +103,7 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
             $this->anonymousWcRequest('CreateAuthenticatedSessionToken', '1', $xml);
             $this->authToken = $this->qpResponse->find('token')->text();
         }
+
         return $this->authToken;
     }
 
@@ -214,17 +222,21 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
     protected function doWcRequest($qpObject)
     {
 
+        $postData = preg_replace('/>\s+</', '><', $qpObject->top()->xml());
+
         $params = array(
             'http' => array(
                 'method' => 'POST',
                 // remove line breaks and spaces between elements, otherwise the signature check will fail
-                'content' => preg_replace('/>\s+</', '><', $qpObject->top()->xml()),
+                'content' => $postData,
             ),
         );
 
         $this->logger->debug('Request: ' . $params['http']['content']);
         $ctx = stream_context_create($params);
-        $this->rawResponse = @file_get_contents($this->healthVaultPlatform, FALSE, $ctx);
+        // $this->rawResponse = @file_get_contents($this->healthVaultPlatform, FALSE, $ctx);
+        $this->rawResponse = @curl_get_file_contents($this->healthVaultPlatform, $postData);
+
         if (!$this->rawResponse) {
             $this->qpResponse = NULL;
             $this->responseCode = -1;
@@ -390,7 +402,55 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
         $this->logger = $logger;
     }
 
+    /**
+     * @param string $digest
+     */
+    public function setDigest($digest)
+    {
+        $this->digest = $digest;
+    }
+
+    /**
+     * @return string
+     */
+    public function getDigest()
+    {
+        return $this->digest;
+    }
+
+
+
 }
+
+//TODO: Remove me
+function curl_get_file_contents($URL, $postData)
+{
+    $c = curl_init($URL);
+    curl_setopt($c, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($c, CURLOPT_POST, true);
+    curl_setopt($c, CURLOPT_POSTFIELDS, $postData );
+    curl_setopt($c, CURLOPT_VERBOSE, 1);
+    curl_setopt($c, CURLOPT_HEADER, 1);
+    curl_setopt($c, CURLINFO_HEADER_OUT, 1);
+
+    $response = curl_exec($c);
+
+
+    $header_size = curl_getinfo($c,CURLINFO_HEADER_SIZE);
+    $result['header'] = substr($response, 0, $header_size);
+    $result['body'] = substr( $response, $header_size );
+    $result['http_code'] = curl_getinfo($c,CURLINFO_HTTP_CODE);
+
+
+    $info = curl_getinfo($c);
+    $headerSent = curl_getinfo($c, CURLINFO_HEADER_OUT);
+
+    curl_close($c);
+
+    return $result['body'];
+}
+
+
 
 /**
  * Class HVRawConnectorUserNotAuthenticatedException
