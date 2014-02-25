@@ -11,10 +11,7 @@ namespace biologis\HV;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use biologis\HV\Net_URL2;
 
-// TODO Remove this
-include("URL2.php");
 
 class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterface
 {
@@ -323,31 +320,10 @@ class HVRawConnector extends AbstractHVRawConnector implements LoggerAwareInterf
                                                 $target = "AUTH", $additionalTargetQSParams = null)
     {
         $config['healthVault']['redirectToken'] = md5(uniqid());
+        $redirectUrl = urlencode("?appid=".$appId."&redirect=".$redirect."?redirectToken=".$config['healthVault']['redirectToken']."&isMRA=true");
+        $url = $healthVaultAuthInstance."?target=".$target."&targetqs=".$redirectUrl;
 
-        // $redirectUrl = $redirect;
-        $redirectUrl = new Net_URL2($redirect);
-
-        // TODO: Form this using PHP functions and not the Net_URL2 class
-        // $queryStr
-
-        $redirectUrl->setQueryVariable('redirectToken', $config['healthVault']['redirectToken']);
-
-        $healthVaultUrl = new Net_URL2($healthVaultAuthInstance);
-        $targetQS = '?appid=' . $appId . '&redirect=' . $redirectUrl->getURL();
-
-
-        if (!empty($additionalTargetQSParams)) {
-            foreach ($additionalTargetQSParams as $key => $val) {
-                $targetQS .= "&" . urlencode($key) . "=" . urlencode($val);
-            }
-        }
-
-        $healthVaultUrl->setQueryVariables(array(
-            'target' => $target,
-            'targetqs' => $targetQS
-        ));
-
-        return $healthVaultUrl->getURL();
+        return $url;
     }
 
     /** Hash
